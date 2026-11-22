@@ -7,7 +7,7 @@
  *   C:\xampp\php\php.exe miner.php 6          -> 6 worker
  *   C:\xampp\php\php.exe miner.php --selftest -> dogrulama testleri
  *
- * Ayni klasorde sha256d_scan.exe (sha256d_scan.c'den derlenmis) olmali.
+ * Ayni klasorde sha256d_scan.exe (sha256d_scan.c'den derlenmis) olmali. Motor (AVX-512/SHA-NI/AVX2) baslangicta otomatik secilir.
  * Havuz version rolling'i (BIP 310) kabul ederse AsicBoost acilir; etmezse eski gibi calisir.
  */
 // Ayarlar config.php'den okunur (config.example.php'yi kopyalayip duzenleyin).
@@ -201,7 +201,13 @@ $n = (int)($argv[1] ?? 0);
 if ($n < 1) { $n = (int)(getenv('NUMBER_OF_PROCESSORS') ?: 0); if ($n < 1) $n = (int)@shell_exec('nproc'); if ($n < 1) $n = 2; }
 file_put_contents(__DIR__ . '/run.flag', '1');
 $bin = c_binary();
-echo "Cuzdan: " . ADDRESS . "\nWorker: $n | mod: " . ($bin ? ('C cekirdegi' . (c_has_ab($bin) ? ' (AsicBoost destekli)' : '')) : 'saf PHP') . "\nDurdurmak icin Ctrl+C veya run.flag dosyasini sil.\n\n";
+// Islemciye gore en hizli motoru olc ve sec (AVX-512 / SHA-NI / AVX2); isciler ortam degiskenini miras alir
+if ($bin && !getenv('SHA256D_ENGINE')) {
+    $o = []; @exec(escapeshellarg($bin) . ' --tune 16', $o);
+    foreach ($o as $l) if (preg_match('/^BEST (\w+)/', $l, $mm)) putenv('SHA256D_ENGINE=' . $mm[1]);
+}
+$eng = getenv('SHA256D_ENGINE') ?: '-';
+echo "Cuzdan: " . ADDRESS . "\nWorker: $n | mod: " . ($bin ? ('C cekirdegi, motor: ' . $eng . (c_has_ab($bin) ? ' (AsicBoost destekli)' : '')) : 'saf PHP') . "\nDurdurmak icin Ctrl+C veya run.flag dosyasini sil.\n\n";
 $procs = [];
 for ($i = 0; $i < $n; $i++) {
     @unlink(__DIR__ . "/stats_$i.txt");
