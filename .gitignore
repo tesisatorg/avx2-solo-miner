@@ -1,0 +1,7 @@
+config.php
+run.flag
+stats_*.txt
+BLOK_BULUNDU.txt
+*.exe
+sha256d_scan
+gpu_scan
